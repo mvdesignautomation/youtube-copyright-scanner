@@ -76,6 +76,7 @@ The system:
                               │ Gmail Alert │
                               └─────────────┘
 
+---
 
 ## Problem
 
@@ -92,6 +93,7 @@ This can become repetitive and time-consuming.
 
 The goal of this project is to automate the initial screening process while keeping a human involved when a result requires additional review.
 
+---
 
 ## Solution
 
@@ -125,6 +127,7 @@ The results are evaluated to determine whether the situation appears safe or req
 
 When the workflow determines that a result requires review, an email notification is generated.
 
+---
 
 ## Automation Concepts Demonstrated
 
@@ -142,7 +145,7 @@ Email notifications
 Multi-step workflow orchestration
 Error and edge-case handling
 
-
+---
 
 ## Technology Stack
 
@@ -156,6 +159,7 @@ Error and edge-case handling
 | REST APIs        | Application integration               |
 | GitHub           | Version control and documentation     |
 
+---
 
 ## Example Workflow
 
@@ -180,6 +184,7 @@ Evaluate Risk
                ↓
           Email Notification
 
+---
 
 ## Human-in-the-Loop Design
 
@@ -199,6 +204,7 @@ Human Review
 
 The human remains responsible for reviewing cases that require further investigation.
 
+---
 
 ## Current Status
 
@@ -218,6 +224,7 @@ More detailed audit logs
 Automated testing
 Production deployment
 
+---
 
 ## Project Goals
 
@@ -233,6 +240,8 @@ The main learning goals were:
 6. Designing human-in-the-loop systems
 7. Documenting an automation project for production-style use
 
+---
+
 ## Author
 
 MV Design
@@ -242,7 +251,7 @@ Building AI-Powered Business Automation
 GitHub:
 https://github.com/mvdesignautomation
 
-##
+---
 
 
 
