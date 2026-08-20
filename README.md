@@ -77,7 +77,7 @@ The system:
                               └─────────────┘
 
 
-Problem
+## Problem
 
 Manually checking a YouTube video for potential copyright matches can involve:
 
@@ -93,7 +93,7 @@ This can become repetitive and time-consuming.
 The goal of this project is to automate the initial screening process while keeping a human involved when a result requires additional review.
 
 
-Solution
+## Solution
 
 The workflow uses n8n to connect the different stages of the process.
 
@@ -126,7 +126,7 @@ The results are evaluated to determine whether the situation appears safe or req
 When the workflow determines that a result requires review, an email notification is generated.
 
 
-Automation Concepts Demonstrated
+## Automation Concepts Demonstrated
 
 This project demonstrates several important automation concepts:
 
@@ -144,7 +144,7 @@ Error and edge-case handling
 
 
 
-Technology Stack
+## Technology Stack
 
 | Technology       | Purpose                               |
 | ---------------- | ------------------------------------- |
@@ -157,7 +157,7 @@ Technology Stack
 | GitHub           | Version control and documentation     |
 
 
-Example Workflow
+## Example Workflow
 
 A simplified execution looks like:
 
@@ -181,7 +181,7 @@ Evaluate Risk
           Email Notification
 
 
-Human-in-the-Loop Design
+## Human-in-the-Loop Design
 
 The system is not intended to automatically make a final legal determination about copyright ownership.
 
@@ -200,7 +200,7 @@ Human Review
 The human remains responsible for reviewing cases that require further investigation.
 
 
-Current Status
+## Current Status
 
 Status: Portfolio Project / In Development
 
@@ -219,7 +219,7 @@ Automated testing
 Production deployment
 
 
-Project Goals
+## Project Goals
 
 This project was built to explore how AI and workflow automation can be combined to create systems that perform multi-step analysis with minimal manual intervention.
 
@@ -233,7 +233,7 @@ The main learning goals were:
 6. Designing human-in-the-loop systems
 7. Documenting an automation project for production-style use
 
-Author
+## Author
 
 MV Design
 
