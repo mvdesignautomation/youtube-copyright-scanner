@@ -76,6 +76,8 @@ The system:
                               │ Gmail Alert │
                               └─────────────┘
 
+```text
+
 ---
 
 ## Problem
