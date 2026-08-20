@@ -2,7 +2,7 @@
 
 An AI-assisted automation workflow built with n8n that analyzes YouTube videos for potential copyright matches and routes higher-risk results for human review.
 
-> Portfolio Project — MV Design
+> **Portfolio Project — MV Design**
 
 ---
 
@@ -27,56 +27,33 @@ The system:
 
 ## Workflow Architecture
 
-```text
-                    ┌─────────────────────┐
-                    │   Submitted Video   │
-                    │      Video ID       │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │  Get Original Video │
-                    │    YouTube API      │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │   Search YouTube    │
-                    │  Candidate Videos   │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │ Normalize Candidates│
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │ Process Candidates  │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │   Copyright Scan    │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │  Risk Evaluation    │
-                    └──────────┬──────────┘
-                               │
-                         ┌─────┴─────┐
-                         │           │
-                         ▼           ▼
-                      SAFE       REVIEW
-                                   REQUIRED
-                                      │
-                                      ▼
-                              ┌─────────────┐
-                              │ Gmail Alert │
-                              └─────────────┘
-
-```text
+    Submitted Video
+         |
+         v
+    Get Original Video
+         |
+         v
+    Search YouTube
+         |
+         v
+    Normalize Candidates
+         |
+         v
+    Process Candidates
+         |
+         v
+    Copyright Scan
+         |
+         v
+    Risk Evaluation
+         |
+       Decision
+       /      \
+      /        \
+    SAFE    REVIEW REQUIRED
+                |
+                v
+           Gmail Alert
 
 ---
 
@@ -84,12 +61,12 @@ The system:
 
 Manually checking a YouTube video for potential copyright matches can involve:
 
-Searching for similar videos
-Reviewing multiple candidates
-Comparing video information
-Evaluating potential matches
-Deciding which cases require further investigation
-Notifying a person responsible for review
+- Searching for similar videos
+- Reviewing multiple candidates
+- Comparing video information
+- Evaluating potential matches
+- Deciding which cases require further investigation
+- Notifying the person responsible for review
 
 This can become repetitive and time-consuming.
 
@@ -101,31 +78,31 @@ The goal of this project is to automate the initial screening process while keep
 
 The workflow uses n8n to connect the different stages of the process.
 
-1. Video Submission
+### 1. Video Submission
 
 The workflow receives a YouTube video ID.
 
-2. Original Video Retrieval
+### 2. Original Video Retrieval
 
 The workflow retrieves information about the submitted video using the YouTube API.
 
-3. Candidate Search
+### 3. Candidate Search
 
 YouTube is searched for videos that may potentially match or relate to the submitted content.
 
-4. Candidate Processing
+### 4. Candidate Processing
 
 The returned candidates are normalized and processed so that they can be evaluated consistently.
 
-5. Copyright Scan
+### 5. Copyright Scan
 
 The workflow performs an automated copyright scan against the candidate results.
 
-6. Risk Evaluation
+### 6. Risk Evaluation
 
 The results are evaluated to determine whether the situation appears safe or requires additional human review.
 
-7. Human Review
+### 7. Human Review
 
 When the workflow determines that a result requires review, an email notification is generated.
 
@@ -135,56 +112,61 @@ When the workflow determines that a result requires review, an email notificatio
 
 This project demonstrates several important automation concepts:
 
-API integration
-Webhooks
-Data transformation
-Candidate filtering
-Conditional branching
-Automated decision-making
-AI-assisted analysis
-Human-in-the-loop workflows
-Email notifications
-Multi-step workflow orchestration
-Error and edge-case handling
+- API integration
+- Webhooks
+- Data transformation
+- Candidate filtering
+- Conditional branching
+- Automated decision-making
+- AI-assisted analysis
+- Human-in-the-loop workflows
+- Email notifications
+- Multi-step workflow orchestration
+- Error and edge-case handling
 
 ---
 
 ## Technology Stack
 
-| Technology       | Purpose                               |
-| ---------------- | ------------------------------------- |
-| n8n              | Workflow automation and orchestration |
-| YouTube Data API | Retrieve and search YouTube data      |
-| AI               | Assist with analysis and evaluation   |
-| Gmail            | Review notifications                  |
-| JavaScript       | Data transformation and logic         |
-| REST APIs        | Application integration               |
-| GitHub           | Version control and documentation     |
+| Technology | Purpose |
+|---|---|
+| n8n | Workflow automation and orchestration |
+| YouTube Data API | Retrieve and search YouTube data |
+| AI | Assist with analysis and evaluation |
+| Gmail | Review notifications |
+| JavaScript | Data transformation and logic |
+| REST APIs | Application integration |
+| GitHub | Version control and documentation |
 
 ---
 
 ## Example Workflow
 
-A simplified execution looks like:
-
-Input YouTube Video
-        ↓
-Retrieve Video Data
-        ↓
-Search Potential Matches
-        ↓
-Process Candidates
-        ↓
-Copyright Scan
-        ↓
-Evaluate Risk
-        ↓
-      Decision
-     /        \
-    /          \
- SAFE       REVIEW REQUIRED
-               ↓
-          Email Notification
+    Input YouTube Video
+            |
+            v
+    Retrieve Video Data
+            |
+            v
+    Search Potential Matches
+            |
+            v
+    Process Candidates
+            |
+            v
+    Copyright Scan
+            |
+            v
+    Evaluate Risk
+            |
+            v
+         Decision
+        /        \
+       /          \
+     SAFE      REVIEW REQUIRED
+                   |
+                   v
+             Email Notification
 
 ---
 
@@ -196,13 +178,16 @@ Instead, automation is used to perform the initial screening and identify cases 
 
 This creates a workflow where:
 
-Automation
-     ↓
-Initial Analysis
-     ↓
-Risk Assessment
-     ↓
-Human Review
+    Automation
+         |
+         v
+    Initial Analysis
+         |
+         v
+    Risk Assessment
+         |
+         v
+    Human Review
 
 The human remains responsible for reviewing cases that require further investigation.
 
@@ -210,21 +195,21 @@ The human remains responsible for reviewing cases that require further investiga
 
 ## Current Status
 
-Status: Portfolio Project / In Development
+**Status:** Portfolio Project / In Development
 
 The core workflow has been built and tested as an automation learning project.
 
-Future improvements may include:
+### Future Improvements
 
-More sophisticated similarity analysis
-Better candidate filtering
-Additional video metadata analysis
-Improved risk scoring
-Persistent scan history
-Dashboard or reporting interface
-More detailed audit logs
-Automated testing
-Production deployment
+- More sophisticated similarity analysis
+- Better candidate filtering
+- Additional video metadata analysis
+- Improved risk scoring
+- Persistent scan history
+- Dashboard or reporting interface
+- More detailed audit logs
+- Automated testing
+- Production deployment
 
 ---
 
@@ -246,17 +231,10 @@ The main learning goals were:
 
 ## Author
 
-MV Design
+**MV Design**
 
 Building AI-Powered Business Automation
 
-GitHub:
-https://github.com/mvdesignautomation
+[GitHub](https://github.com/mvdesignautomation)
 
----
-
-
-
-Portfolio:
-https://mvdesignautomation.github.io/
-
+[Portfolio](https://mvdesignautomation.github.io/)
