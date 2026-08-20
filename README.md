@@ -301,6 +301,25 @@ To run the workflow, users must configure their own credentials and service conn
 
 The core automation workflow has been built and tested as an automation learning and portfolio project.
 
+---
+
+## Testing
+
+The workflow has been tested end-to-end in a self-hosted n8n environment.
+
+Verified components include:
+
+- YouTube Data API integration
+- Video metadata retrieval
+- Candidate video search
+- Candidate processing
+- Copyright scan
+- Risk evaluation
+- Google Sheets result logging
+- Workflow branching
+
+---
+
 ### Future Improvements
 
 - More sophisticated video similarity analysis
@@ -313,7 +332,7 @@ The core automation workflow has been built and tested as an automation learning
 - Automated testing
 - Production deployment
 - Additional notification channels
-
+  
 ---
 
 ## Project Goals
