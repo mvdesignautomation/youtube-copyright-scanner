@@ -1,0 +1,1198 @@
+{
+  "name": "Youtube Copyright checker V1",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "YouTube Copyright Checker",
+        "formDescription": "Paste the URL of the YouTube video you want to check for potential unauthorized reuse.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "YouTube Video URL",
+              "placeholder": "https://www.youtube.com/watch?v=...",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        736,
+        -3168
+      ],
+      "id": "9129464e-7754-4b66-96d5-6f5749fbb75f",
+      "name": "On form submission",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.items[0].snippet.title }}"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "maxResults",
+              "value": "10"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_YOUTUBE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1552,
+        -2960
+      ],
+      "id": "cb1e44de-7dc6-4286-9ede-c3304ba1792f",
+      "name": "Search YouTube Candidates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const searchResults = $input.first().json.items || [];\n\nreturn searchResults.map(item => ({\n  json: {\n    matched_video_id: item.id.videoId,\n    matched_title: item.snippet.title,\n    matched_description: item.snippet.description,\n    matched_channel_id: item.snippet.channelId,\n    matched_channel_name: item.snippet.channelTitle,\n    matched_published_at: item.snippet.publishedAt,\n    matched_thumbnail: item.snippet.thumbnails?.high?.url \n      || item.snippet.thumbnails?.medium?.url \n      || item.snippet.thumbnails?.default?.url,\n    matched_url: `https://www.youtube.com/watch?v=${item.id.videoId}`\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        -2960
+      ],
+      "id": "62fa826b-1907-4033-ab87-463d6bab4dbd",
+      "name": "Normalize Candidates"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails,statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{$json.matched_video_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1904,
+        -2960
+      ],
+      "id": "a9ec956f-ce58-4aa2-884c-0b3c768d5ff8",
+      "name": "Get candidate details",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "YOUR_N8N_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const url = $json[\"YouTube Video URL\"];\n\nif (!url) {\n  throw new Error(\"No YouTube URL was provided.\");\n}\n\nlet videoId = null;\n\n// Standard YouTube URL:\n// https://www.youtube.com/watch?v=VIDEO_ID\nconst watchMatch = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);\n\n// Short URL:\n// https://youtu.be/VIDEO_ID\nconst shortMatch = url.match(/youtu\\.be\\/([A-Za-z0-9_-]{11})/);\n\n// Shorts:\n// https://www.youtube.com/shorts/VIDEO_ID\nconst shortsMatch = url.match(/youtube\\.com\\/shorts\\/([A-Za-z0-9_-]{11})/);\n\nvideoId =\n  watchMatch?.[1] ||\n  shortMatch?.[1] ||\n  shortsMatch?.[1];\n\nif (!videoId) {\n  throw new Error(\"Invalid or unsupported YouTube URL.\");\n}\n\nreturn {\n  json: {\n    youtube_url: url,\n    video_id: videoId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -2960
+      ],
+      "id": "037640df-3b59-493c-bd52-3b58310cd873",
+      "name": "Extract Video ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "const channel = $json.items?.[0];\n\nif (!channel) {\n  throw new Error(\"No YouTube channel found for this Google account.\");\n}\n\nreturn {\n  json: {\n    youtube_channel_id: channel.id,\n    youtube_channel_name: channel.snippet?.title || \"\",\n    youtube_handle: channel.snippet?.customUrl || \"\",\n    authorized_at: new Date().toISOString()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -3072
+      ],
+      "id": "3f6603f0-dd74-48e0-b74c-61b65785cf2f",
+      "name": "Prepare YouTube User"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1344,
+        -2960
+      ],
+      "id": "c7651202-1161-4ea4-b439-aa5a1f605809",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/channels",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails,statistics"
+            },
+            {
+              "name": "mine",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        944,
+        -2960
+      ],
+      "id": "5c1f6656-21c6-4ab2-b14c-083c5092fc2a",
+      "name": "Get Authenticated YouTube Channel",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "YOUR_N8N_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails,statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.video_id }}"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_YOUTUBE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1136,
+        -2880
+      ],
+      "id": "d7f61e86-d474-4bb0-9843-f276feb049ed",
+      "name": "Get Original Video"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const candidate = $json;\n\n// Get the original video response\nconst originalResponse = $(\"Get Original Video\").item.json;\n\n// YouTube API responses usually contain the video inside items[0]\nconst original = originalResponse.items?.[0] || originalResponse;\n\n// Get authorized channel information\nconst authChannel = $(\"Prepare YouTube User\").item.json;\n\n// ------------------------------------\n// ORIGINAL VIDEO INFORMATION\n// ------------------------------------\n\nconst originalVideoId =\n  original.video_id ||\n  original.id ||\n  \"\";\n\nconst originalChannelId =\n  original.channel_id ||\n  original.snippet?.channelId ||\n  \"\";\n\nconst originalTitle =\n  original.title ||\n  original.snippet?.title ||\n  \"\";\n\n// ------------------------------------\n// MATCHED VIDEO INFORMATION\n// ------------------------------------\n\nconst matchedVideoId =\n  candidate.matched_video_id || \"\";\n\nconst matchedChannelId =\n  candidate.matched_channel_id || \"\";\n\nconst matchedTitle =\n  candidate.matched_title || \"\";\n\n// ------------------------------------\n// COPYRIGHT SCORE\n// ------------------------------------\n\nlet score = 0;\nlet reasons = [];\n\n// 1. Same video ID\nif (\n  originalVideoId &&\n  matchedVideoId &&\n  matchedVideoId === originalVideoId\n) {\n  score += 100;\n  reasons.push(\"Same video ID\");\n}\n\n// 2. Same YouTube channel\nif (\n  matchedChannelId &&\n  (\n    matchedChannelId === originalChannelId ||\n    matchedChannelId === authChannel.youtube_channel_id\n  )\n) {\n  score += 40;\n  reasons.push(\"Same YouTube channel\");\n}\n\n// 3. Exact title match\nif (\n  originalTitle &&\n  matchedTitle &&\n  originalTitle.trim().toLowerCase() ===\n  matchedTitle.trim().toLowerCase()\n) {\n  score += 30;\n  reasons.push(\"Exact title match\");\n}\n\n// ------------------------------------\n// DETERMINE RISK LEVEL\n// ------------------------------------\n\nlet risk_level;\n\nif (score >= 100) {\n  risk_level = \"ORIGINAL\";\n} else if (score >= 50) {\n  risk_level = \"HIGH\";\n} else if (score >= 30) {\n  risk_level = \"MEDIUM\";\n} else {\n  risk_level = \"LOW\";\n}\n\n// ------------------------------------\n// DETERMINE IF THIS IS THE ORIGINAL\n// ------------------------------------\n\nconst is_original =\n  Boolean(originalVideoId) &&\n  Boolean(matchedVideoId) &&\n  matchedVideoId === originalVideoId;\n\n// ------------------------------------\n// RETURN RESULT\n// ------------------------------------\n\nreturn {\n  json: {\n    ...candidate,\n\n    original_video_id: originalVideoId,\n    original_title: originalTitle,\n\n    copyright_score: score,\n    risk_level,\n    scan_reasons: reasons,\n\n    is_original\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        -2880
+      ],
+      "id": "044aa90d-812c-469f-a719-b565df0e55cc",
+      "name": "Copyright Scan"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d0ddc39f-19db-4e29-b244-fd865ecc0935",
+              "leftValue": "={{ $json.is_original }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        -2448
+      ],
+      "id": "2cf1669f-87a7-476e-a953-cbd7f3fcc412",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const api = $json.items?.[0];\n\nif (!api) {\n  throw new Error(\"No candidate video details were returned.\");\n}\n\n// Candidate found by the search\nconst candidate = $(\"Normalize Candidates\").item.json;\n\n// Authenticated YouTube channel\nconst authChannel = $(\"Prepare YouTube User\").item.json;\n\n// Original video\nconst original = $(\"Get Original Video\").item.json;\n\nconst snippet = api.snippet || {};\nconst contentDetails = api.contentDetails || {};\nconst stats = api.statistics || {};\n\nreturn {\n  json: {\n    // Original video\n    original_video_id: original.video_id || original.id || \"\",\n    original_video_url: original.video_url || \"\",\n    \n    // Authenticated channel\n    authorized_channel_id: authChannel.youtube_channel_id || \"\",\n    authorized_channel_name: authChannel.youtube_channel_name || \"\",\n    authorized_channel_handle: authChannel.youtube_handle || \"\",\n\n    // Candidate\n    matched_video_id: candidate.matched_video_id || api.id,\n    matched_title: candidate.matched_title || snippet.title || \"\",\n    matched_description: candidate.matched_description || snippet.description || \"\",\n    matched_channel_id: candidate.matched_channel_id || snippet.channelId || \"\",\n    matched_channel_name: candidate.matched_channel_name || \"\",\n    matched_published_at: candidate.matched_published_at || snippet.publishedAt || \"\",\n    matched_thumbnail: candidate.matched_thumbnail || \"\",\n    matched_url: candidate.matched_url || `https://www.youtube.com/watch?v=${api.id}`,\n\n    // Candidate details\n    duration: contentDetails.duration || \"\",\n    view_count: Number(stats.viewCount || 0),\n    like_count: Number(stats.likeCount || 0),\n    comment_count: Number(stats.commentCount || 0)\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        -2960
+      ],
+      "id": "4e2ff43a-f563-499a-ba0d-b292f97eee35",
+      "name": "Process Candidate Result"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const candidate = $json;\n\n// Determine the match status\nconst score = candidate.copyright_score || 0;\nconst riskLevel = candidate.risk_level || \"LOW\";\nconst reasons = candidate.scan_reasons || [];\n\nlet status;\n\nif (riskLevel === \"HIGH\") {\n  status = \"HIGH_COPYRIGHT_RISK\";\n} else if (riskLevel === \"MEDIUM\") {\n  status = \"POSSIBLE_COPYRIGHT_MATCH\";\n} else {\n  status = \"LOW_COPYRIGHT_RISK\";\n}\n\nreturn {\n  json: {\n    status,\n\n    is_original: false,\n\n    submitted_video_id: candidate.original_video_id || \"\",\n    submitted_video_url: candidate.original_video_url || \"\",\n\n    authorized_channel_id: candidate.authorized_channel_id || \"\",\n    authorized_channel_name: candidate.authorized_channel_name || \"\",\n    authorized_channel_handle: candidate.authorized_channel_handle || \"\",\n\n    matched_video_id: candidate.matched_video_id || \"\",\n    matched_video_url: candidate.matched_url || \"\",\n\n    matched_title: candidate.matched_title || \"\",\n    matched_channel_id: candidate.matched_channel_id || \"\",\n    matched_channel_name: candidate.matched_channel_name || \"\",\n    matched_published_at: candidate.matched_published_at || \"\",\n\n    duration: candidate.duration || \"\",\n    view_count: candidate.view_count || 0,\n    like_count: candidate.like_count || 0,\n    comment_count: candidate.comment_count || 0,\n\n    copyright_score: score,\n    risk_level: riskLevel,\n    scan_reasons: reasons,\n\n    message:\n      status === \"HIGH_COPYRIGHT_RISK\"\n        ? \"This video appears to strongly match another YouTube video.\"\n        : status === \"POSSIBLE_COPYRIGHT_MATCH\"\n        ? \"This video may contain content that matches another YouTube video.\"\n        : \"This video has a low copyright match risk.\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -2352
+      ],
+      "id": "e697b719-6222-4ffe-94aa-ca71719caed2",
+      "name": "Copyright Match Result"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const candidate = $json;\n\nreturn {\n  json: {\n    status: \"ORIGINAL_VIDEO\",\n    is_original: true,\n\n    submitted_video_id: candidate.original_video_id || \"\",\n    submitted_video_url: candidate.original_video_url || \"\",\n\n    authorized_channel_id: candidate.authorized_channel_id || \"\",\n    authorized_channel_name: candidate.authorized_channel_name || \"\",\n    authorized_channel_handle: candidate.authorized_channel_handle || \"\",\n\n    matched_video_id: candidate.matched_video_id || \"\",\n    matched_video_url: candidate.matched_url || \"\",\n\n    matched_title: candidate.matched_title || \"\",\n    matched_channel_id: candidate.matched_channel_id || \"\",\n    matched_channel_name: candidate.matched_channel_name || \"\",\n\n    duration: candidate.duration || \"\",\n    view_count: candidate.view_count || 0,\n    like_count: candidate.like_count || 0,\n    comment_count: candidate.comment_count || 0,\n\n    copyright_score: candidate.copyright_score || 0,\n    risk_level: \"ORIGINAL\",\n\n    scan_reasons: candidate.scan_reasons || [],\n\n    message: \"This video matches the original submitted video.\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -2544
+      ],
+      "id": "6bebdc44-f3ae-473f-bfcf-b85be1a5f510",
+      "name": "Prepare Original Result"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1136,
+        -2448
+      ],
+      "id": "2ef58a29-5dcd-429b-aa18-90c6c42cfb09",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cd628996-3e25-4c56-bc17-6bf6e8a42d04",
+              "leftValue": "=Value 1: {{ $json.risk_level }}",
+              "rightValue": "ORIGINAL",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1360,
+        -2448
+      ],
+      "id": "69bd2e39-c078-4ce4-8548-0dd1650334a6",
+      "name": "Evaluate Copyright Risk"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5d25496b-e930-400e-92b1-3bcdeb32b411",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "MEDIUM",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1584,
+        -2448
+      ],
+      "id": "f4a59450-68f3-4a71-8891-dae742359011",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $json;\n\n// ------------------------------------------------\n// Helper: safely escape HTML\n// ------------------------------------------------\nfunction escapeHtml(value) {\n  if (value === null || value === undefined) {\n    return \"\";\n  }\n\n  return String(value)\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\")\n    .replace(/\"/g, \"&quot;\")\n    .replace(/'/g, \"&#039;\");\n}\n\n// ------------------------------------------------\n// Helper: create YouTube URL\n// ------------------------------------------------\nfunction getYouTubeUrl(videoUrl, videoId) {\n  if (videoUrl) {\n    return String(videoUrl);\n  }\n\n  if (videoId) {\n    return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;\n  }\n\n  return \"\";\n}\n\n// ------------------------------------------------\n// Basic data\n// ------------------------------------------------\nconst submittedVideoId = data.submitted_video_id || \"\";\n\nconst submittedVideoUrl = getYouTubeUrl(\n  data.submitted_video_url,\n  submittedVideoId\n);\n\nconst submittedChannel =\n  data.authorized_channel_name || \"Unknown\";\n\nconst status =\n  data.overall_status ||\n  data.status ||\n  \"REVIEW_REQUIRED\";\n\nconst riskLevel =\n  data.highest_risk_level ||\n  data.risk_level ||\n  \"UNKNOWN\";\n\nconst copyrightScore =\n  data.highest_copyright_score ??\n  data.copyright_score ??\n  0;\n\nconst candidatesScanned =\n  data.candidates_scanned ??\n  0;\n\nconst possibleMatches =\n  data.possible_matches ??\n  (Array.isArray(data.matches) ? data.matches.length : 0);\n\nconst matches =\n  Array.isArray(data.matches)\n    ? data.matches\n    : [];\n\n// ------------------------------------------------\n// Determine the first match title for subject\n// ------------------------------------------------\nconst firstMatchTitle =\n  matches.length > 0 && matches[0].title\n    ? matches[0].title\n    : \"Potential Match\";\n\n// ------------------------------------------------\n// Email subject\n// ------------------------------------------------\nconst emailSubject =\n  status === \"REVIEW_REQUIRED\"\n    ? `⚠️ Copyright Review Required — ${firstMatchTitle}`\n    : `YouTube Copyright Scan Result — ${status}`;\n\n// ------------------------------------------------\n// Build submitted video section\n// ------------------------------------------------\nlet submittedVideoHtml = \"\";\n\nif (submittedVideoUrl) {\n  submittedVideoHtml = `\n    <a\n      href=\"${escapeHtml(submittedVideoUrl)}\"\n      target=\"_blank\"\n      style=\"\n        display:inline-block;\n        padding:10px 16px;\n        background:#1a73e8;\n        color:#ffffff;\n        text-decoration:none;\n        border-radius:5px;\n        font-weight:bold;\n      \"\n    >\n      View Submitted Video\n    </a>\n  `;\n} else {\n  submittedVideoHtml = `\n    <span style=\"color:#777;\">\n      No link available\n    </span>\n  `;\n}\n\n// ------------------------------------------------\n// Build possible matches table\n// ------------------------------------------------\nlet matchesHtml = \"\";\n\nif (matches.length > 0) {\n\n  const rows = matches.map((match, index) => {\n\n    const matchVideoUrl = getYouTubeUrl(\n      match.video_url,\n      match.video_id\n    );\n\n    const number =\n      match.number || index + 1;\n\n    const title =\n      match.title || \"Unknown title\";\n\n    const channel =\n      match.channel || \"Unknown channel\";\n\n    const score =\n      match.score ?? 0;\n\n    const reason =\n      match.reason || \"Potential match\";\n\n    let reviewLink = \"No link available\";\n\n    if (matchVideoUrl) {\n      reviewLink = `\n        <a\n          href=\"${escapeHtml(matchVideoUrl)}\"\n          target=\"_blank\"\n          style=\"\n            color:#1a73e8;\n            text-decoration:none;\n            font-weight:bold;\n          \"\n        >\n          View Video\n        </a>\n      `;\n    }\n\n    return `\n      <tr>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n            text-align:center;\n          \"\n        >\n          ${escapeHtml(number)}\n        </td>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n          \"\n        >\n          <strong>\n            ${escapeHtml(title)}\n          </strong>\n        </td>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n          \"\n        >\n          ${escapeHtml(channel)}\n        </td>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n            text-align:center;\n          \"\n        >\n          ${escapeHtml(score)}\n        </td>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n          \"\n        >\n          ${escapeHtml(reason)}\n        </td>\n\n        <td\n          style=\"\n            padding:10px;\n            border:1px solid #ddd;\n            text-align:center;\n          \"\n        >\n          ${reviewLink}\n        </td>\n\n      </tr>\n    `;\n  }).join(\"\");\n\n  matchesHtml = `\n    <h3\n      style=\"\n        margin-top:30px;\n        color:#333;\n      \"\n    >\n      Potential Copyright Matches\n    </h3>\n\n    <table\n      style=\"\n        border-collapse:collapse;\n        width:100%;\n        font-size:14px;\n      \"\n    >\n\n      <thead>\n\n        <tr style=\"background:#f5f5f5;\">\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n            \"\n          >\n            #\n          </th>\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n              text-align:left;\n            \"\n          >\n            Title\n          </th>\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n              text-align:left;\n            \"\n          >\n            Channel\n          </th>\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n            \"\n          >\n            Score\n          </th>\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n              text-align:left;\n            \"\n          >\n            Reason\n          </th>\n\n          <th\n            style=\"\n              padding:10px;\n              border:1px solid #ddd;\n            \"\n          >\n            Review\n          </th>\n\n        </tr>\n\n      </thead>\n\n      <tbody>\n        ${rows}\n      </tbody>\n\n    </table>\n  `;\n\n} else {\n\n  matchesHtml = `\n    <h3\n      style=\"\n        margin-top:30px;\n        color:#333;\n      \"\n    >\n      Potential Copyright Matches\n    </h3>\n\n    <p style=\"color:#777;\">\n      No potential matches were found.\n    </p>\n  `;\n}\n\n// ------------------------------------------------\n// Main HTML email\n// ------------------------------------------------\nconst html = `\n\n<div\n  style=\"\n    font-family:Arial,Helvetica,sans-serif;\n    max-width:900px;\n    margin:0 auto;\n    color:#333;\n    line-height:1.5;\n  \"\n>\n\n  <!-- Header -->\n\n  <div\n    style=\"\n      background:#f3d3d3;\n      border:1px solid #e6bebe;\n      padding:20px;\n      border-radius:8px;\n      margin-bottom:20px;\n    \"\n  >\n\n    <h2\n      style=\"\n        margin:0;\n        color:#b00020;\n      \"\n    >\n      ⚠️ Copyright Review Required\n    </h2>\n\n    <p style=\"margin:8px 0 0;\">\n      A potential copyright match was detected and requires manual review.\n    </p>\n\n  </div>\n\n\n  <!-- Submitted Video -->\n\n  <h3 style=\"margin-top:25px;\">\n    Submitted Video\n  </h3>\n\n  <table\n    style=\"\n      border-collapse:collapse;\n      width:100%;\n      margin-bottom:25px;\n    \"\n  >\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n          width:35%;\n        \"\n      >\n        <strong>Video ID</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(submittedVideoId)}\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Channel</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(submittedChannel)}\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Video</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${submittedVideoHtml}\n      </td>\n\n    </tr>\n\n  </table>\n\n\n  <!-- Scan Summary -->\n\n  <h3>\n    Scan Summary\n  </h3>\n\n  <table\n    style=\"\n      border-collapse:collapse;\n      width:100%;\n      margin-bottom:25px;\n    \"\n  >\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n          width:50%;\n        \"\n      >\n        <strong>Status</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(status)}\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Risk Level</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        <strong>\n          ${escapeHtml(riskLevel)}\n        </strong>\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Highest Copyright Score</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(copyrightScore)}\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Candidates Scanned</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(candidatesScanned)}\n      </td>\n\n    </tr>\n\n    <tr>\n\n      <td\n        style=\"\n          padding:10px;\n          background:#f5f5f5;\n        \"\n      >\n        <strong>Possible Matches</strong>\n      </td>\n\n      <td style=\"padding:10px;\">\n        ${escapeHtml(possibleMatches)}\n      </td>\n\n    </tr>\n\n  </table>\n\n\n  <!-- Matches -->\n\n  ${matchesHtml}\n\n\n  <!-- Footer -->\n\n  <p\n    style=\"\n      margin-top:30px;\n      font-size:12px;\n      color:#777;\n    \"\n  >\n    This notification was automatically generated by the\n    YouTube Copyright Scan workflow.\n  </p>\n\n</div>\n\n`;\n\n// ------------------------------------------------\n// Return data\n// IMPORTANT:\n// This node is \"Run Once for Each Item\",\n// therefore return ONE item, not an array.\n// ------------------------------------------------\n\nreturn {\n  json: {\n    ...data,\n\n    email_subject: emailSubject,\n\n    email_html: html\n  }\n};\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -2656
+      ],
+      "id": "6de3453b-0e43-4cc7-9e97-13f663a60659",
+      "name": "Prepare Copyright Alert"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1904,
+        -2432
+      ],
+      "id": "cacbfa48-a054-4dbf-94c7-9ab97842980d",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\n\nreturn {\n  json: {\n    status: item.status || \"UNKNOWN\",\n\n    submitted_video_id: item.submitted_video_id || \"\",\n    submitted_video_url: item.submitted_video_url || \"\",\n\n    authorized_channel_id: item.authorized_channel_id || \"\",\n    authorized_channel_name: item.authorized_channel_name || \"\",\n    authorized_channel_handle: item.authorized_channel_handle || \"\",\n\n    matched_video_id: item.matched_video_id || \"\",\n    matched_video_url: item.matched_video_url || \"\",\n    matched_title: item.matched_title || \"\",\n    matched_channel_id: item.matched_channel_id || \"\",\n    matched_channel_name: item.matched_channel_name || \"\",\n    matched_published_at: item.matched_published_at || \"\",\n\n    copyright_score: item.copyright_score || 0,\n    risk_level: item.risk_level || \"\",\n    scan_reasons: item.scan_reasons || [],\n\n    message: item.message || \"\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        -2432
+      ],
+      "id": "c1dfce2e-e744-49ae-870c-305391a88835",
+      "name": "Final Copyright Result"
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "={{ $json.email_subject }}",
+        "message": "={{ $json.email_html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2288,
+        -2656
+      ],
+      "id": "e8d11583-fa11-4325-9873-d0e7d34e1546",
+      "name": "Send a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "YOUR_N8N_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\n\nreturn {\n  json: {\n    status: \"NO_COPYRIGHT_MATCH\",\n\n    submitted_video_id: item.submitted_video_id || \"\",\n    submitted_video_url: item.submitted_video_url || \"\",\n\n    authorized_channel_id: item.authorized_channel_id || \"\",\n    authorized_channel_name: item.authorized_channel_name || \"\",\n    authorized_channel_handle: item.authorized_channel_handle || \"\",\n\n    matched_video_id: item.matched_video_id || \"\",\n    matched_video_url: item.matched_video_url || \"\",\n    matched_title: item.matched_title || \"\",\n    matched_channel_id: item.matched_channel_id || \"\",\n    matched_channel_name: item.matched_channel_name || \"\",\n    matched_published_at: item.matched_published_at || \"\",\n\n    copyright_score: item.copyright_score || 0,\n    risk_level: item.risk_level || \"\",\n    scan_reasons: item.scan_reasons || [],\n\n    message: \"No significant copyright match detected.\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        -2320
+      ],
+      "id": "cdd4a186-cfa8-4976-9f32-a376aa9fd40c",
+      "name": "Prepare Safe Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Get all incoming candidate results\nconst \ncandidates = $input.all().map(item => item.json);\n\nif (candidates.length === 0) {\n  return [];\n}\n\n// Basic information from the first candidate\nconst first = candidates[0];\n\nconst submittedVideoId =\n  first.submitted_video_id || \"\";\n\n// Find the candidate with the highest copyright score\nconst highestRiskCandidate = candidates.reduce((highest, current) => {\n  const highestScore = Number(highest?.copyright_score || 0);\n  const currentScore = Number(current?.copyright_score || 0);\n\n  return currentScore > highestScore ? current : highest;\n}, candidates[0]);\n\n// Determine highest risk level\nconst riskLevels = candidates.map(c => c.risk_level || \"LOW\");\n\nlet highestRiskLevel = \"LOW\";\n\nif (riskLevels.includes(\"HIGH\")) {\n  highestRiskLevel = \"HIGH\";\n} else if (riskLevels.includes(\"MEDIUM\")) {\n  highestRiskLevel = \"MEDIUM\";\n}\n\n// Determine overall status\nlet status = \"NO_COPYRIGHT_MATCH\";\n\nif (\n  candidates.some(c =>\n    c.status === \"REVIEW_REQUIRED\" ||\n    c.status === \"POSSIBLE_COPYRIGHT_MATCH\"\n  )\n) {\n  status = \"REVIEW_REQUIRED\";\n} else if (\n  candidates.some(c => c.status === \"ORIGINAL\")\n) {\n  status = \"ORIGINAL\";\n}\n\n// Collect all scan reasons\nconst reasons = [\n  ...new Set(\n    candidates.flatMap(c => {\n      if (Array.isArray(c.scan_reasons)) {\n        return c.scan_reasons;\n      }\n\n      if (c.scan_reasons) {\n        return [c.scan_reasons];\n      }\n\n      return [];\n    })\n  )\n];\n\n// Create one summary item\nreturn [\n  {\n    json: {\n      scan_date: new Date().toISOString(),\n\n      submitted_video_id: submittedVideoId,\n\n      submitted_video_url:\n        first.submitted_video_url || \"\",\n\n      authorized_channel_name:\n        first.authorized_channel_name || \"\",\n\n      status,\n\n      highest_risk_level: highestRiskLevel,\n\n      highest_copyright_score:\n        Number(highestRiskCandidate.copyright_score || 0),\n\n      matched_video_id:\n        highestRiskCandidate.matched_video_id || \"\",\n\n      matched_video_url:\n        highestRiskCandidate.matched_video_url || \"\",\n\n      matched_title:\n        highestRiskCandidate.matched_title || \"\",\n\n      matched_channel_name:\n        highestRiskCandidate.matched_channel_name || \"\",\n\n      matched_published_at:\n        highestRiskCandidate.matched_published_at || \"\",\n\n      candidates_scanned:\n        candidates.length,\n\n      alert_sent:\n        status === \"REVIEW_REQUIRED\" ? \"YES\" : \"NO\",\n\n      scan_reasons:\n        reasons.join(\", \"),\n\n      message:\n        status === \"REVIEW_REQUIRED\"\n          ? \"Potential copyright match detected. Manual review is required.\"\n          : status === \"ORIGINAL\"\n            ? \"Original video detected.\"\n            : \"No significant copyright match detected.\"\n    }\n  }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        -2432
+      ],
+      "id": "df084fe4-bcd8-4d3d-8d69-a37a8f0ff740",
+      "name": "Aggregate Copyright Result"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YouTube Copyright Scan Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Scans",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.status }}",
+            "submitted_video_id": "={{ $json.submitted_video_id }}",
+            "submitted_video_url": "={{ $json.submitted_video_url }}",
+            "authorized_channel_name": "={{ $json.authorized_channel_name }}",
+            "matched_video_id": "={{ $json.matched_video_id }}",
+            "matched_video_url": "={{ $json.matched_video_url }}",
+            "matched_title": "={{ $json.matched_title }}",
+            "matched_channel_name": "={{ $json.matched_channel_name }}",
+            "matched_published_at": "={{ $json.matched_published_at }}",
+            "copyright_score": "={{ $json.copyright_score }}",
+            "risk_level": "={{ $json.risk_level }}",
+            "scan_reasons": "={{ $json.scan_reasons.join(', ') }}",
+            "message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "submitted_video_id",
+              "displayName": "submitted_video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "submitted_video_url",
+              "displayName": "submitted_video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "authorized_channel_name",
+              "displayName": "authorized_channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_video_id",
+              "displayName": "matched_video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_video_url",
+              "displayName": "matched_video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_title",
+              "displayName": "matched_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_channel_name",
+              "displayName": "matched_channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_published_at",
+              "displayName": "matched_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "copyright_score",
+              "displayName": "copyright_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scan_reasons",
+              "displayName": "scan_reasons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2352,
+        -2432
+      ],
+      "id": "4977392f-856c-4ee3-b4ac-c83ef272d2a5",
+      "name": "YouTube Copyright Scan Results",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "YOUR_N8N_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "YouTube Copyright Scan Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1598187018,
+          "mode": "list",
+          "cachedResultName": "Summary",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "scan_date": "={{ $json.scan_date }}",
+            "submitted_video_id": "={{ $json.submitted_video_id }}",
+            "submitted_video_url": "={{ $json.submitted_video_url }}",
+            "authorized_channel_name": "={{ $json.authorized_channel_name }}",
+            "status": "={{ $json.status }}",
+            "highest_risk_level": "={{ $json.highest_risk_level }}",
+            "highest_copyright_score": "={{ $json.highest_copyright_score }}",
+            "matched_video_id": "={{ $json.matched_video_id }}",
+            "matched_video_url": "={{ $json.matched_video_id }}",
+            "matched_title": "={{ $json.matched_title }}",
+            "matched_channel_name": "={{ $json.matched_channel_name }}",
+            "matched_published_at": "={{ $json.matched_published_at }}",
+            "candidates_scanned": "={{ $json.candidates_scanned }}",
+            "alert_sent": "={{ $json.alert_sent }}",
+            "scan_reasons": "={{ $json.scan_reasons }}",
+            "message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "scan_date",
+              "displayName": "scan_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_video_id",
+              "displayName": "submitted_video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_video_url",
+              "displayName": "submitted_video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "authorized_channel_name",
+              "displayName": "authorized_channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "highest_risk_level",
+              "displayName": "highest_risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "highest_copyright_score",
+              "displayName": "highest_copyright_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matched_video_id",
+              "displayName": "matched_video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matched_video_url",
+              "displayName": "matched_video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matched_title",
+              "displayName": "matched_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matched_channel_name",
+              "displayName": "matched_channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matched_published_at",
+              "displayName": "matched_published_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "candidates_scanned",
+              "displayName": "candidates_scanned",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_sent",
+              "displayName": "alert_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scan_reasons",
+              "displayName": "scan_reasons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2800,
+        -2432
+      ],
+      "id": "b86ac022-ba7c-4e6a-9008-c0b4c5fc0746",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_N8N_CREDENTIAL_ID",
+          "name": "YOUR_N8N_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 0) {\n  return [];\n}\n\nconst first = items[0].json;\n\n// Find the highest-risk match\nconst highest = items.reduce((best, item) => {\n  const score = Number(item.json.copyright_score || 0);\n  const bestScore = Number(best.json.copyright_score || 0);\n\n  return score > bestScore ? item : best;\n}, items[0]).json;\n\n// Build the list of matching videos\nconst matches = items.map((item, index) => {\n  const data = item.json;\n\n  return {\n    number: index + 1,\n    title: data.matched_title || \"Unknown title\",\n    channel: data.matched_channel_name || \"Unknown channel\",\n    score: Number(data.copyright_score || 0),\n    reason: Array.isArray(data.scan_reasons)\n      ? data.scan_reasons.join(\", \")\n      : data.scan_reasons || \"Potential match\",\n    video_url: data.matched_video_url || \"\"\n  };\n});\n\nreturn [\n  {\n    json: {\n      submitted_video_id: first.submitted_video_id || \"\",\n      submitted_video_url: first.submitted_video_url || \"\",\n      authorized_channel_name: first.authorized_channel_name || \"\",\n\n      overall_status: \"REVIEW_REQUIRED\",\n\n      highest_risk_level: highest.risk_level || \"LOW\",\n      highest_copyright_score: Number(highest.copyright_score || 0),\n\n      candidates_scanned: items.length,\n      possible_matches: matches.length,\n\n      matches\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        -2656
+      ],
+      "id": "b3bba4e3-394a-427f-ae24-961c361ec3e7",
+      "name": "Aggregate Review Matches"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract Video ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search YouTube Candidates": {
+      "main": [
+        [
+          {
+            "node": "Normalize Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Candidates": {
+      "main": [
+        [
+          {
+            "node": "Get candidate details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get candidate details": {
+      "main": [
+        [
+          {
+            "node": "Process Candidate Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video ID": {
+      "main": [
+        [
+          {
+            "node": "Get Original Video",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Authenticated YouTube Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare YouTube User": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Search YouTube Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Authenticated YouTube Channel": {
+      "main": [
+        [
+          {
+            "node": "Prepare YouTube User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Original Video": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Copyright Scan": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Prepare Original Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Copyright Match Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Candidate Result": {
+      "main": [
+        [
+          {
+            "node": "Copyright Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Original Result": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copyright Match Result": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Copyright Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Copyright Risk": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Review Matches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Safe Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Copyright Alert": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Final Copyright Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare Safe Result": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Final Copyright Result": {
+      "main": [
+        [
+          {
+            "node": "YouTube Copyright Scan Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Copyright Scan Results": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Copyright Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Copyright Result": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Review Matches": {
+      "main": [
+        [
+          {
+            "node": "Prepare Copyright Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "98e34327-c2b2-455c-a284-fb6f8202137a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7acc776abb21230e52ddcf0efb422b06dc3b503b82fc807fab43b71cf8983266"
+  },
+  "nodeGroups": [],
+  "id": "EMaPkEGRRiPs5Vj5",
+  "tags": []
+}
